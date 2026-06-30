@@ -8,6 +8,7 @@
 # Variables avec valeurs réelles (credentials)
 terraform.tfvars
 *.auto.tfvars
+!terraform-tp2-jour2/terraform.auto.tfvars
 
 # Dossier de plugins Terraform
 .terraform/

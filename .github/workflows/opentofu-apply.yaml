@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 env:
-  CONFIG_DIRECTORY: terraform-tp-jour1
+  CONFIG_DIRECTORY: terraform-tp2-jour2
   AWS_REGION: eu-west-1
 
 jobs:

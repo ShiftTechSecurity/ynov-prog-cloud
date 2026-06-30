@@ -6,8 +6,8 @@ on:
     branches:
       - main
     paths:
-      - "terraform-tp-jour1/**/*.tf"
-      - "terraform-tp-jour1/**/*.tfvars"
+      - "terraform-tp2-jour2/**/*.tf"
+      - "terraform-tp2-jour2/**/*.tfvars"
       - ".github/workflows/opentofu-plan.yaml"
   workflow_dispatch:
 
@@ -17,7 +17,7 @@ permissions:
   pull-requests: write
 
 env:
-  CONFIG_DIRECTORY: terraform-tp-jour1
+  CONFIG_DIRECTORY: terraform-tp2-jour2
   AWS_REGION: eu-west-1
 
 jobs:
