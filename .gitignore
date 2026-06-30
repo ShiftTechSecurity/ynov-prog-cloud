@@ -1,0 +1,18 @@
+/credentials.md
+~$*
+
+# State Terraform (contient des données sensibles)
+*.tfstate
+*.tfstate.backup
+
+# Variables avec valeurs réelles (credentials)
+terraform.tfvars
+*.auto.tfvars
+
+# Dossier de plugins Terraform
+.terraform/
+.terraform.lock.hcl
+
+# Fichiers système
+.DS_Store
+*.log

@@ -1,0 +1,84 @@
+---
+name: OpenTofu Plan
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "terraform-tp-jour1/**/*.tf"
+      - "terraform-tp-jour1/**/*.tfvars"
+      - ".github/workflows/opentofu-plan.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+env:
+  CONFIG_DIRECTORY: terraform-tp-jour1
+  AWS_REGION: eu-west-1
+
+jobs:
+  opentofu-plan:
+    name: OpenTofu format, validate, and plan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v2
+        with:
+          tofu_wrapper: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check OpenTofu formatting
+        run: tofu fmt -check -recursive
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Initialize TFLint
+        run: tflint --init
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+
+      - name: Run TFLint
+        run: tflint
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: ${{ env.CONFIG_DIRECTORY }}
+        continue-on-error: true
+
+      - name: OpenTofu init
+        run: tofu init -input=false
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+
+      - name: OpenTofu validate
+        run: tofu validate
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+
+      - name: OpenTofu plan
+        id: plan
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+        run: |
+          set +e
+          tofu plan -input=false -no-color -detailed-exitcode -out=tfplan > plan.txt
+          exitcode=$?
+          cat plan.txt
+          echo "exitcode=$exitcode" >> "$GITHUB_OUTPUT"
+          if [ "$exitcode" -eq 1 ]; then
+            exit 1
+          fi

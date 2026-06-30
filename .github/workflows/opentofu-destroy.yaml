@@ -1,0 +1,45 @@
+---
+name: OpenTofu Destroy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CONFIG_DIRECTORY: terraform-tp-jour1
+  AWS_REGION: eu-west-1
+
+jobs:
+  opentofu-destroy:
+    name: OpenTofu plan destroy and apply destroy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v2
+        with:
+          tofu_wrapper: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: OpenTofu init
+        run: tofu init -input=false
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+
+      - name: OpenTofu plan destroy
+        run: tofu plan -destroy -input=false -out=tfplan
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+
+      - name: OpenTofu apply destroy
+        run: tofu apply -input=false -auto-approve tfplan
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
