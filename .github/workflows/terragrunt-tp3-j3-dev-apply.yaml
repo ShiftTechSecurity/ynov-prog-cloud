@@ -1,0 +1,118 @@
+---
+name: Terragrunt TP3-J3 Apply Dev
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_apply:
+        description: 'Type APPLY to confirm Terragrunt apply on Dev'
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+env:
+  TERRAFORM_CONFIG_DIRECTORY: terraform-tp3-jour3
+  TERRAGRUNT_CONFIG_DIRECTORY: terragrunt-tp3-jour3/dev
+  AWS_REGION: eu-west-1
+  TF_VAR_alert_email: ${{ secrets.ALERT_EMAIL }}
+
+jobs:
+  terragrunt-apply:
+    name: Terragrunt format, validate, plan and apply
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate apply confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm_apply }}" != "APPLY" ]; then
+            echo "You must type APPLY to run this workflow."
+            exit 1
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terragrunt and OpenTofu
+        uses: gruntwork-io/terragrunt-action@v3
+        with:
+          tg_version: '0.82.2'
+          tofu_version: '1.10.1'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check OpenTofu formatting
+        run: tofu fmt -check -recursive
+        working-directory: ${{ env.TERRAFORM_CONFIG_DIRECTORY }}
+
+      - name: Check Terragrunt formatting
+        run: terragrunt hcl fmt --check --diff
+        working-directory: ${{ env.TERRAGRUNT_CONFIG_DIRECTORY }}
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Initialize TFLint
+        run: tflint --init
+        working-directory: ${{ env.TERRAFORM_CONFIG_DIRECTORY }}
+
+      - name: Run TFLint
+        run: tflint
+        working-directory: ${{ env.TERRAFORM_CONFIG_DIRECTORY }}
+
+      - name: tfsec
+        uses: aquasecurity/tfsec-action@v1.0.0
+        continue-on-error: true
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: ${{ env.TERRAFORM_CONFIG_DIRECTORY }}
+        continue-on-error: true
+
+      - name: Run Trivy vulnerability scanner in repo mode
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: 'fs'
+          ignore-unfixed: true
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: 'trivy'
+
+      - name: OpenTofu init for validation
+        run: tofu init -backend=false -input=false
+        working-directory: ${{ env.TERRAFORM_CONFIG_DIRECTORY }}
+
+      - name: Terragrunt init
+        run: terragrunt init -input=false
+        working-directory: ${{ env.TERRAGRUNT_CONFIG_DIRECTORY }}     
+
+      - name: OpenTofu validate
+        run: tofu validate
+        working-directory: ${{ env.TERRAFORM_CONFIG_DIRECTORY }}
+
+      - name: Terragrunt validate
+        run: terragrunt validate
+        working-directory: ${{ env.TERRAGRUNT_CONFIG_DIRECTORY }}
+
+      - name: Terragrunt plan
+        run: terragrunt plan -input=false -no-color -out=tgplan
+        working-directory: ${{ env.TERRAGRUNT_CONFIG_DIRECTORY }}
+
+      - name: Terragrunt apply
+        run: terragrunt apply -input=false -auto-approve tgplan
+        working-directory: ${{ env.TERRAGRUNT_CONFIG_DIRECTORY }}

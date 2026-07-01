@@ -344,6 +344,106 @@ Vérification :
 - vérifier que la clé KMS utilisée correspond à celle créée par Terraform
 - vérifier les outputs `kms_key_id`, `kms_key_arn` et `encrypted_ebs_volumes`
 
+## TP Jour 3 - TP3 Monitoring CloudWatch
+
+Dossiers :
+
+- `terraform-tp3-jour3`
+- `terragrunt-tp3-jour3`
+
+Le sujet initial du TP porte sur une chaîne de monitoring basique avec alerte CPU et notification.
+Dans ce repository, l'exercice a été adapté sur AWS avec CloudWatch et SNS.
+
+L'objectif est de mettre en place une chaîne simple :
+
+```text
+EC2 CPUUtilization -> CloudWatch Alarm -> SNS Topic -> email
+```
+
+Le dossier `terraform-tp3-jour3` reprend l'architecture 3-tiers AWS utilisée dans les TPs précédents.
+Il ajoute les ressources de monitoring suivantes :
+
+- `aws_sns_topic.alerts`
+- `aws_sns_topic_subscription.email`
+- `aws_cloudwatch_metric_alarm.cpu_high`
+
+Une alarme CloudWatch est créée pour chaque instance EC2 avec `for_each`.
+Elle surveille la métrique AWS `CPUUtilization` sur chaque `InstanceId`.
+
+Le seuil configuré est :
+
+- CPU moyenne supérieure à `70%`
+- sur `2` périodes
+- avec une période de `60` secondes
+
+Cela permet de déclencher l'alerte après environ deux minutes de CPU élevée, au lieu de réagir à un pic instantané.
+
+Les notifications sont envoyées via un topic SNS.
+L'adresse email de destination n'est pas commit dans le repository.
+
+Dans GitHub Actions, elle est fournie par le secret :
+
+```text
+ALERT_EMAIL
+```
+
+Les workflows TP3-J3 exposent ce secret à Terraform avec :
+
+```yaml
+TF_VAR_alert_email: ${{ secrets.ALERT_EMAIL }}
+```
+
+Le dossier `terragrunt-tp3-jour3` contient deux environnements :
+
+- `dev/terragrunt.hcl`
+- `prod/terragrunt.hcl`
+
+Chaque environnement pointe vers :
+
+```hcl
+source = "../../terraform-tp3-jour3"
+```
+
+Les states sont séparés :
+
+- `prog-cloud/terraform-tp3-jour3/dev/terraform.tfstate`
+- `prog-cloud/terraform-tp3-jour3/prod/terraform.tfstate`
+
+Les workflows GitHub Actions dédiés au TP sont :
+
+- `terragrunt-tp3-j3-dev-plan.yaml`
+- `terragrunt-tp3-j3-dev-apply.yaml`
+- `terragrunt-tp3-j3-dev-destroy.yaml`
+- `terragrunt-tp3-j3-prod-plan.yaml`
+- `terragrunt-tp3-j3-prod-apply.yaml`
+- `terragrunt-tp3-j3-prod-destroy.yaml`
+
+Résultat attendu :
+
+- une architecture 3-tiers AWS par environnement
+- un topic SNS par environnement
+- une subscription email SNS
+- une alarme CloudWatch CPU par instance EC2
+- des notifications email lors du passage en alarme et du retour à l'état OK
+- des outputs affichant le topic SNS, la subscription et les alarmes CloudWatch
+
+Vérification :
+
+- confirmer l'abonnement SNS depuis l'email reçu après l'apply
+- vérifier les alarmes dans CloudWatch
+- générer une charge CPU sur une instance EC2
+- vérifier le passage de l'alarme en état `In alarm`
+- vérifier la réception de l'email SNS
+- vérifier le retour à l'état `OK` après l'arrêt de la charge CPU
+
+Questions / réponses :
+
+- Question : Pourquoi est-il important de définir un délai de deux minutes plutôt qu'un seuil instantané ?
+  Réponse : Un seuil instantané peut déclencher une alerte sur un pic très court et sans impact réel. Attendre deux minutes permet de vérifier que le problème est durable avant de notifier, ce qui réduit les faux positifs.
+
+- Question : Qu'est-ce que la fatigue d'alertes et comment ce TP pourrait-il y contribuer si mal calibré ?
+  Réponse : La fatigue d'alertes arrive quand trop de notifications peu utiles sont envoyées. Si le seuil CPU est trop bas ou la durée trop courte, les alertes deviennent bruyantes et les personnes finissent par les ignorer, y compris lorsqu'un vrai incident se produit.
+
 ## Pipelines OpenTofu
 
 Les workflows GitHub Actions dans `.github/workflows` exécutent OpenTofu sur le dossier TP configuré avec `CONFIG_DIRECTORY`.
