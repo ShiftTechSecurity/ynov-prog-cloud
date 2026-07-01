@@ -1,11 +1,11 @@
 ---
-name: OpenTofu Apply
+name: Terragrunt Apply Dev
 
 on:
   workflow_dispatch:
     inputs:
       confirm_apply:
-        description: 'Type APPLY to confirm Terraform apply'
+        description: 'Type APPLY to confirm Terragrunt apply on Dev'
         required: true
         type: string
 
@@ -15,12 +15,13 @@ permissions:
   security-events: write
 
 env:
-  CONFIG_DIRECTORY: terraform-tp3-jour2
+  TERRAFORM_CONFIG_DIRECTORY: terraform-tp1-jour3
+  TERRAGRUNT_CONFIG_DIRECTORY: terragrunt-tp1-jour3/dev
   AWS_REGION: eu-west-1
 
 jobs:
-  opentofu-apply:
-    name: OpenTofu format, validate, plan and apply
+  terragrunt-apply:
+    name: Terragrunt format, validate, plan and apply
     runs-on: ubuntu-latest
 
     steps:
@@ -34,10 +35,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup OpenTofu
-        uses: opentofu/setup-opentofu@v2
+      - name: Setup Terragrunt and OpenTofu
+        uses: gruntwork-io/terragrunt-action@v3
         with:
-          tofu_wrapper: false
+          tg_version: '0.82.2'
+          tofu_version: '1.10.1'
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -48,18 +50,22 @@ jobs:
 
       - name: Check OpenTofu formatting
         run: tofu fmt -check -recursive
-        working-directory: ${{ env.CONFIG_DIRECTORY }}
+        working-directory: ${{ env.TERRAFORM_CONFIG_DIRECTORY }}
+
+      - name: Check Terragrunt formatting
+        run: terragrunt hcl fmt --check --diff
+        working-directory: ${{ env.TERRAGRUNT_CONFIG_DIRECTORY }}
 
       - name: Setup TFLint
         uses: terraform-linters/setup-tflint@v4
 
       - name: Initialize TFLint
         run: tflint --init
-        working-directory: ${{ env.CONFIG_DIRECTORY }}
+        working-directory: ${{ env.TERRAFORM_CONFIG_DIRECTORY }}
 
       - name: Run TFLint
         run: tflint
-        working-directory: ${{ env.CONFIG_DIRECTORY }}
+        working-directory: ${{ env.TERRAFORM_CONFIG_DIRECTORY }}
 
       - name: tfsec
         uses: aquasecurity/tfsec-action@v1.0.0
@@ -68,7 +74,7 @@ jobs:
       - name: Run Checkov
         uses: bridgecrewio/checkov-action@master
         with:
-          directory: ${{ env.CONFIG_DIRECTORY }}
+          directory: ${{ env.TERRAFORM_CONFIG_DIRECTORY }}
         continue-on-error: true
 
       - name: Run Trivy vulnerability scanner in repo mode
@@ -86,22 +92,26 @@ jobs:
           sarif_file: 'trivy-results.sarif'
           category: 'trivy'
 
-      - name: OpenTofu fmt
-        run: tofu fmt -recursive
-        working-directory: ${{ env.CONFIG_DIRECTORY }}
+      - name: OpenTofu init for validation
+        run: tofu init -backend=false -input=false
+        working-directory: ${{ env.TERRAFORM_CONFIG_DIRECTORY }}
 
-      - name: OpenTofu init
-        run: tofu init -input=false
-        working-directory: ${{ env.CONFIG_DIRECTORY }}
+      - name: Terragrunt init
+        run: terragrunt init -input=false
+        working-directory: ${{ env.TERRAGRUNT_CONFIG_DIRECTORY }}     
 
       - name: OpenTofu validate
         run: tofu validate
-        working-directory: ${{ env.CONFIG_DIRECTORY }}
+        working-directory: ${{ env.TERRAFORM_CONFIG_DIRECTORY }}
 
-      - name: OpenTofu plan
-        run: tofu plan -input=false -out=tfplan
-        working-directory: ${{ env.CONFIG_DIRECTORY }}
+      - name: Terragrunt validate
+        run: terragrunt validate
+        working-directory: ${{ env.TERRAGRUNT_CONFIG_DIRECTORY }}
 
-      - name: OpenTofu apply
-        run: tofu apply -input=false -auto-approve tfplan
-        working-directory: ${{ env.CONFIG_DIRECTORY }}
+      - name: Terragrunt plan
+        run: terragrunt plan -input=false -no-color -out=tgplan
+        working-directory: ${{ env.TERRAGRUNT_CONFIG_DIRECTORY }}
+
+      - name: Terragrunt apply
+        run: terragrunt apply -input=false -auto-approve tgplan
+        working-directory: ${{ env.TERRAGRUNT_CONFIG_DIRECTORY }}

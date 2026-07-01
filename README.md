@@ -184,6 +184,85 @@ Questions / réponses :
 - Question : Si vous supprimez le tier `api` de `var.tiers` et faites `terraform apply`, que se passe-t-il avec les tiers `web` et `db` ? (`for_each` vs `count`)
   Réponse : Terraform détruit `api` et ses dépendances. `web` et `db` gardent leur identité, car `for_each` utilise des clés stables et non des index.
 
+## TP Jour 3 - TP1 Terragrunt dev/prod
+
+Dossiers :
+
+- `terraform-tp1-jour3`
+- `terragrunt-tp1-jour3`
+
+Comme un pipeline OpenTofu avait déjà été mis en place lors du jour 1, ce TP pousse la logique CI/CD plus loin avec Terragrunt.
+L'objectif est de réutiliser le code Terraform du TP3 du jour 2, puis de le variabiliser pour permettre le déploiement de deux environnements distincts : `dev` et `prod`.
+
+Le dossier `terraform-tp1-jour3` contient le code Terraform réutilisable.
+Il décrit l'infrastructure 3-tiers sans porter directement la configuration propre à un environnement.
+Les valeurs qui changent entre `dev` et `prod` sont fournies par Terragrunt.
+
+Le dossier `terragrunt-tp1-jour3` contient deux configurations :
+
+- `dev/terragrunt.hcl`
+- `prod/terragrunt.hcl`
+
+Chaque environnement pointe vers le même code Terraform avec `source`, mais fournit ses propres inputs :
+
+- `environment`
+- `aws_region`
+- `vpc_cidr`
+- `public_subnet_cidr`
+- `private_subnet_cidr`
+
+Cela permet de conserver une seule base Terraform tout en générant des ressources séparées par environnement.
+La variable `environment` est intégrée dans les noms et tags des ressources AWS afin d'éviter les collisions entre `dev` et `prod`.
+
+Exemples de séparation :
+
+- `dev` utilise le réseau `172.18.0.0/16`
+- `prod` utilise le réseau `172.19.0.0/16`
+- le state `dev` est stocké dans une clé S3 dédiée
+- le state `prod` est stocké dans une clé S3 dédiée
+
+Le backend S3 est déclaré côté Terraform avec un bloc vide :
+
+```hcl
+backend "s3" {}
+```
+
+La configuration réelle du backend est fournie par Terragrunt avec `remote_state`.
+Cela permet à chaque environnement d'utiliser le même module Terraform avec un state différent.
+
+Six workflows GitHub Actions Terragrunt ont été créés afin de séparer clairement les actions par environnement :
+
+- `terragrunt-dev-plan.yaml`
+- `terragrunt-dev-apply.yaml`
+- `terragrunt-dev-destroy.yaml`
+- `terragrunt-prod-plan.yaml`
+- `terragrunt-prod-apply.yaml`
+- `terragrunt-prod-destroy.yaml`
+
+Les pipelines exécutent :
+
+- le formatage OpenTofu du code Terraform
+- le formatage Terragrunt des fichiers HCL
+- TFLint
+- Checkov
+- Trivy
+- `tofu validate` avec initialisation sans backend
+- `terragrunt validate`
+- `terragrunt plan`, `apply` ou `destroy` selon le workflow
+
+Résultat attendu :
+
+- un même code Terraform réutilisé pour plusieurs environnements
+- des ressources AWS nommées avec l'environnement
+- des CIDR différents entre `dev` et `prod`
+- des states S3 séparés
+- des pipelines CI/CD Terragrunt dédiés par environnement
+
+Question de réflexion :
+
+- Question : Pourquoi le job `apply` ne doit-il jamais se déclencher directement sur une Pull Request, mais uniquement après un merge sur `main` ?
+  Réponse : Une Pull Request est une phase de revue et de validation. Elle peut provenir d'une branche non validée et contenir du code encore en discussion. Déclencher un `apply` à ce moment pourrait modifier l'infrastructure avant validation humaine et avant intégration officielle. Le `merge` sur `main` marque la décision de déployer une version acceptée du code.
+
 ## Pipelines OpenTofu
 
 Les workflows GitHub Actions dans `.github/workflows` exécutent OpenTofu sur le dossier TP configuré avec `CONFIG_DIRECTORY`.

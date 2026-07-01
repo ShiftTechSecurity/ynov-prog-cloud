@@ -9,10 +9,12 @@ terraform.tfvars
 *.auto.tfvars
 !terraform-tp2-jour2/terraform.auto.tfvars
 !terraform-tp3-jour2/terraform.auto.tfvars
+!terraform-tp1-jour3/terraform.auto.tfvars
 
 # Dossier de plugins Terraform
 .terraform/
 .terraform.lock.hcl
+.terragrunt-cache/
 
 # Fichiers système
 .DS_Store
