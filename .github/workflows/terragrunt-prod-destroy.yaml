@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 env:
-  TERRAGRUNT_CONFIG_DIRECTORY: terragrunt-tp1-jour3/prod
+  TERRAGRUNT_CONFIG_DIRECTORY: terragrunt-tp2-jour3/prod
   AWS_REGION: eu-west-1
 
 jobs:

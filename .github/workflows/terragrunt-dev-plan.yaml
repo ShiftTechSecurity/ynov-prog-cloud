@@ -6,9 +6,9 @@ on:
     branches:
       - main
     paths:
-      - "terraform-tp1-jour3/**/*.tf"
-      - "terraform-tp1-jour3/**/*.tfvars"
-      - "terragrunt-tp1-jour3/dev/**/*.hcl"
+      - "terraform-tp2-jour3/**/*.tf"
+      - "terraform-tp2-jour3/**/*.tfvars"
+      - "terragrunt-tp2-jour3/dev/**/*.hcl"
       - ".github/workflows/terragrunt-dev-plan.yaml"
   workflow_dispatch:
 
@@ -20,8 +20,8 @@ permissions:
   security-events: write
 
 env:
-  TERRAFORM_CONFIG_DIRECTORY: terraform-tp1-jour3
-  TERRAGRUNT_CONFIG_DIRECTORY: terragrunt-tp1-jour3/dev
+  TERRAFORM_CONFIG_DIRECTORY: terraform-tp2-jour3
+  TERRAGRUNT_CONFIG_DIRECTORY: terragrunt-tp2-jour3/dev
   AWS_REGION: eu-west-1
 
 jobs:

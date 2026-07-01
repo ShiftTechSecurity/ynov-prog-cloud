@@ -263,6 +263,87 @@ Question de réflexion :
 - Question : Pourquoi le job `apply` ne doit-il jamais se déclencher directement sur une Pull Request, mais uniquement après un merge sur `main` ?
   Réponse : Une Pull Request est une phase de revue et de validation. Elle peut provenir d'une branche non validée et contenir du code encore en discussion. Déclencher un `apply` à ce moment pourrait modifier l'infrastructure avant validation humaine et avant intégration officielle. Le `merge` sur `main` marque la décision de déployer une version acceptée du code.
 
+## TP Jour 3 - TP2 KMS et volumes EBS chiffrés
+
+Dossiers :
+
+- `terraform-tp2-jour3`
+- `terragrunt-tp2-jour3`
+
+Le sujet initial du TP porte sur KMS et le chiffrement d'un volume.
+Dans ce repository, l'exercice a été adapté sur AWS afin de rester cohérent avec les TPs précédents.
+Le code reprend l'architecture 3-tiers déjà utilisée, puis ajoute le chiffrement avec AWS KMS et des volumes EBS chiffrés.
+
+L'objectif est de créer, pour chaque environnement Terragrunt :
+
+- une clé KMS AWS dédiée
+- un alias KMS lisible
+- un volume EBS chiffré de `20 Go` pour chaque instance EC2
+- un attachement de chaque volume EBS à l'instance correspondante
+
+Comme les environnements `dev` et `prod` ont chacun leur propre configuration Terragrunt et leur propre state S3, chaque environnement crée sa propre clé KMS et ses propres volumes chiffrés.
+Il n'y a donc pas de partage de clé entre `dev` et `prod`.
+
+Le dossier `terraform-tp2-jour3` contient le code Terraform réutilisable.
+Les ressources ajoutées pour ce TP sont :
+
+- `aws_kms_key.ebs`
+- `aws_kms_alias.ebs`
+- `aws_ebs_volume.encrypted_data`
+- `aws_volume_attachment.encrypted_data`
+
+La clé KMS active la rotation automatique avec :
+
+```hcl
+enable_key_rotation = true
+```
+
+Les volumes EBS sont créés avec :
+
+```hcl
+size       = 20
+type       = "gp3"
+encrypted  = true
+kms_key_id = aws_kms_key.ebs.arn
+```
+
+Le dossier `terragrunt-tp2-jour3` contient deux environnements :
+
+- `dev/terragrunt.hcl`
+- `prod/terragrunt.hcl`
+
+Chaque environnement pointe vers le même code Terraform :
+
+```hcl
+source = "../../terraform-tp2-jour3"
+```
+
+Les states sont séparés :
+
+- `prog-cloud/terraform-tp2-jour3/dev/terraform.tfstate`
+- `prog-cloud/terraform-tp2-jour3/prod/terraform.tfstate`
+
+Les CIDR restent séparés entre les environnements :
+
+- `dev` utilise le réseau `172.18.0.0/16`
+- `prod` utilise le réseau `172.19.0.0/16`
+
+Résultat attendu :
+
+- une architecture 3-tiers AWS par environnement
+- une clé KMS différente pour `dev` et `prod`
+- un alias KMS nommé avec l'environnement
+- trois volumes EBS chiffrés par environnement
+- chaque volume EBS attaché à son instance EC2
+- des outputs affichant la clé KMS et les volumes chiffrés
+
+Vérification :
+
+- dans AWS KMS, vérifier la présence de la clé et de son alias
+- dans EC2 > Volumes, vérifier que les volumes EBS sont chiffrés
+- vérifier que la clé KMS utilisée correspond à celle créée par Terraform
+- vérifier les outputs `kms_key_id`, `kms_key_arn` et `encrypted_ebs_volumes`
+
 ## Pipelines OpenTofu
 
 Les workflows GitHub Actions dans `.github/workflows` exécutent OpenTofu sur le dossier TP configuré avec `CONFIG_DIRECTORY`.
