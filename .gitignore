@@ -12,6 +12,7 @@ terraform.tfvars
 !terraform-tp1-jour3/terraform.auto.tfvars
 !terraform-tp2-jour3/terraform.auto.tfvars
 !terraform-tp3-jour3/terraform.auto.tfvars
+!teraform-salle3-jour4/terraform.auto.tfvars
 
 # Dossier de plugins Terraform
 .terraform/

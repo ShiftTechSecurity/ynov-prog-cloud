@@ -1,0 +1,108 @@
+---
+name: OpenTofu T3 J4 Plan
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "teraform-salle3-jour4/**/*.tf"
+      - "teraform-salle3-jour4/**/*.tfvars"
+      - "teraform-salle3-jour4/user_data/**"
+      - ".github/workflows/opentofu-t3-j4-plan.yaml"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+  pull-requests: write
+  security-events: write
+
+env:
+  CONFIG_DIRECTORY: teraform-salle3-jour4
+  AWS_REGION: eu-west-1
+  TF_VAR_db_app_password: ${{ secrets.DB_APP_PASSWORD }}
+
+jobs:
+  opentofu-plan:
+    name: OpenTofu Salle 3 Jour 4 format, validate, and plan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v2
+        with:
+          tofu_wrapper: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check OpenTofu formatting
+        run: tofu fmt -check -recursive
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Initialize TFLint
+        run: tflint --init
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+
+      - name: Run TFLint
+        run: tflint
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+
+      - name: tfsec
+        uses: aquasecurity/tfsec-action@v1.0.0
+        continue-on-error: true
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: ${{ env.CONFIG_DIRECTORY }}
+        continue-on-error: true
+
+      - name: Run Trivy vulnerability scanner in repo mode
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: "fs"
+          ignore-unfixed: true
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL"
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: "trivy-results.sarif"
+          category: "trivy-t3-j4"
+
+      - name: OpenTofu init
+        run: tofu init -input=false
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+
+      - name: OpenTofu validate
+        run: tofu validate
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+
+      - name: OpenTofu plan
+        id: plan
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+        run: |
+          set +e
+          tofu plan -input=false -no-color -detailed-exitcode -out=tfplan > plan.txt
+          exitcode=$?
+          cat plan.txt
+          echo "exitcode=$exitcode" >> "$GITHUB_OUTPUT"
+          if [ "$exitcode" -eq 1 ]; then
+            exit 1
+          fi

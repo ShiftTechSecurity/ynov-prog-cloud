@@ -1,0 +1,941 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NordCloud - Schéma architecture 3 tiers</title>
+  <style>
+    @page {
+      size: 3840px 2160px;
+      margin: 0;
+    }
+
+    :root {
+      --bg: #f4f8fc;
+      --ink: #111827;
+      --muted: #5b6677;
+      --panel: #ffffff;
+      --aws: #ff9900;
+      --blue: #1f6feb;
+      --green: #168a53;
+      --orange: #c76d00;
+      --red: #b42318;
+      --violet: #6b4fc2;
+      --shadow: 0 28px 70px rgba(25, 39, 62, 0.13);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #101722;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--ink);
+    }
+
+    .stage {
+      width: min(100vw, 3840px);
+      aspect-ratio: 16 / 9;
+      overflow: auto;
+      background: #101722;
+    }
+
+    .canvas {
+      position: relative;
+      width: 3840px;
+      height: 2160px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 9% 8%, rgba(255, 153, 0, 0.12), transparent 28%),
+        radial-gradient(circle at 92% 8%, rgba(31, 111, 235, 0.10), transparent 28%),
+        linear-gradient(180deg, #fbfdff 0%, var(--bg) 100%);
+    }
+
+    .header {
+      position: absolute;
+      left: 120px;
+      right: 120px;
+      top: 70px;
+      height: 170px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 64px;
+    }
+
+    .headline h1 {
+      margin: 0 0 18px;
+      font-size: 88px;
+      line-height: 1.02;
+      letter-spacing: 0;
+      color: var(--ink);
+    }
+
+    .headline p {
+      margin: 0;
+      max-width: 2300px;
+      font-size: 39px;
+      line-height: 1.3;
+      color: var(--muted);
+    }
+
+    .region-badge {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      border: 1px solid #d2dbe7;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.92);
+      padding: 22px 28px;
+      font-size: 34px;
+      font-weight: 900;
+      color: #29364a;
+      white-space: nowrap;
+      box-shadow: 0 18px 40px rgba(25, 39, 62, 0.10);
+    }
+
+    .region-badge img {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+    }
+
+    .aws-cloud {
+      position: absolute;
+      left: 116px;
+      top: 290px;
+      width: 3608px;
+      height: 1520px;
+      border: 6px solid #8fb8df;
+      border-radius: 56px;
+      background: rgba(226, 238, 250, 0.58);
+    }
+
+    .cloud-title {
+      position: absolute;
+      left: 176px;
+      top: 320px;
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      padding: 22px 30px;
+      border: 1px solid #bdd1e7;
+      border-radius: 22px;
+      background: #fff;
+      font-size: 42px;
+      font-weight: 900;
+      color: #21476c;
+      z-index: 6;
+      box-shadow: 0 18px 42px rgba(30, 57, 88, 0.10);
+    }
+
+    .cloud-title img {
+      width: 62px;
+      height: 62px;
+    }
+
+    .vpc-box {
+      position: absolute;
+      left: 650px;
+      top: 450px;
+      width: 2840px;
+      height: 1000px;
+      border: 6px dashed #73a3ce;
+      border-radius: 46px;
+      background: rgba(247, 251, 255, 0.62);
+    }
+
+    .vpc-label {
+      position: absolute;
+      left: 695px;
+      top: 492px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding: 18px 24px;
+      border-radius: 20px;
+      background: #fff;
+      border: 1px solid #c3d3e4;
+      font-size: 34px;
+      font-weight: 900;
+      color: #24415f;
+      z-index: 6;
+      box-shadow: 0 16px 34px rgba(30, 57, 88, 0.10);
+    }
+
+    .vpc-label img {
+      width: 52px;
+      height: 52px;
+    }
+
+    .subnet {
+      position: absolute;
+      top: 620px;
+      width: 820px;
+      height: 760px;
+      border: 4px solid #c7d2df;
+      border-radius: 40px;
+      padding: 38px;
+      z-index: 3;
+    }
+
+    .subnet.public {
+      left: 740px;
+      background: linear-gradient(180deg, #effaf4 0%, #def3e7 100%);
+      border-color: #8ccba7;
+    }
+
+    .subnet.app {
+      left: 1650px;
+      background: linear-gradient(180deg, #f1f4ff 0%, #e4e9ff 100%);
+      border-color: #9aa8ff;
+    }
+
+    .subnet.data {
+      left: 2560px;
+      background: linear-gradient(180deg, #fff5e7 0%, #ffe6c3 100%);
+      border-color: #e4ad58;
+    }
+
+    .subnet-title {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 22px;
+      font-size: 40px;
+      font-weight: 900;
+      color: var(--ink);
+    }
+
+    .subnet-title img {
+      width: 52px;
+      height: 52px;
+    }
+
+    .cidr {
+      display: inline-block;
+      margin-bottom: 36px;
+      padding: 14px 20px;
+      border: 1px solid #c8d2df;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.92);
+      color: #475569;
+      font-size: 30px;
+      font-weight: 900;
+    }
+
+    .card {
+      position: relative;
+      height: 480px;
+      border: 2px solid #cfd8e5;
+      border-radius: 30px;
+      background: #fff;
+      box-shadow: var(--shadow);
+      padding: 38px 40px 32px;
+    }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      margin-bottom: 30px;
+    }
+
+    .icon-wrap {
+      width: 126px;
+      height: 126px;
+      display: grid;
+      place-items: center;
+      border-radius: 28px;
+      background: #f5f7fb;
+      border: 1px solid #d7e0eb;
+      flex: 0 0 auto;
+    }
+
+    .icon-wrap img {
+      width: 96px;
+      height: 96px;
+      object-fit: contain;
+    }
+
+    .card h2 {
+      margin: 0;
+      font-size: 48px;
+      line-height: 1.08;
+      color: var(--ink);
+    }
+
+    .card .subtitle {
+      margin: 10px 0 0;
+      font-size: 32px;
+      line-height: 1.18;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .details {
+      display: grid;
+      gap: 12px;
+      margin-top: 8px;
+      font-size: 31px;
+      color: #38465a;
+      line-height: 1.25;
+    }
+
+    .mini-line {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .mini-line img {
+      width: 34px;
+      height: 34px;
+      object-fit: contain;
+      flex: 0 0 auto;
+    }
+
+    .details strong {
+      color: var(--ink);
+    }
+
+    .chips {
+      position: absolute;
+      left: 40px;
+      right: 40px;
+      bottom: 32px;
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      padding: 12px 16px;
+      border-radius: 14px;
+      background: #eef2f7;
+      color: #334155;
+      font-size: 26px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .chip.green {
+      background: #daf5e6;
+      color: #17633e;
+    }
+
+    .chip.blue {
+      background: #dfeaff;
+      color: #1f4fa3;
+    }
+
+    .chip.orange {
+      background: #ffe9c7;
+      color: #7c4700;
+    }
+
+    .external {
+      position: absolute;
+      z-index: 8;
+      border: 2px solid #d4dce8;
+      border-radius: 26px;
+      background: #fff;
+      box-shadow: 0 22px 54px rgba(25, 39, 62, 0.12);
+      padding: 22px 26px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .external img {
+      width: 76px;
+      height: 76px;
+      object-fit: contain;
+    }
+
+    .external h3 {
+      margin: 0 0 6px;
+      font-size: 34px;
+      color: var(--ink);
+    }
+
+    .external p {
+      margin: 0;
+      font-size: 25px;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .mini-badges {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .mini-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 8px;
+      border: 1px solid #d6dfeb;
+      border-radius: 10px;
+      background: #f8fafc;
+      color: #334155;
+      font-size: 18px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .mini-badge img {
+      width: 22px;
+      height: 22px;
+    }
+
+    .users {
+      left: 215px;
+      top: 565px;
+      width: 380px;
+    }
+
+    .admin {
+      left: 215px;
+      top: 1065px;
+      width: 390px;
+    }
+
+    .igw {
+      left: 215px;
+      top: 800px;
+      width: 390px;
+    }
+
+    .nat {
+      left: 215px;
+      top: 1308px;
+      width: 390px;
+    }
+
+    .service-row {
+      position: absolute;
+      left: 720px;
+      top: 1535px;
+      width: 2720px;
+      height: 210px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 28px;
+      z-index: 8;
+    }
+
+    .service {
+      border: 2px solid #d5deeb;
+      border-radius: 26px;
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 20px 46px rgba(25, 39, 62, 0.10);
+      padding: 24px 18px;
+      text-align: center;
+    }
+
+    .service img {
+      width: 72px;
+      height: 72px;
+      object-fit: contain;
+      display: block;
+      margin: 0 auto 14px;
+    }
+
+    .service strong {
+      display: block;
+      font-size: 28px;
+      color: var(--ink);
+      line-height: 1.12;
+    }
+
+    .service span {
+      display: block;
+      margin-top: 10px;
+      font-size: 23px;
+      color: var(--muted);
+      font-weight: 800;
+      line-height: 1.18;
+    }
+
+    .flow-label {
+      position: absolute;
+      z-index: 9;
+      padding: 13px 18px;
+      border: 1px solid #cfd8e5;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.96);
+      color: #26364d;
+      font-size: 28px;
+      font-weight: 900;
+      white-space: nowrap;
+      box-shadow: 0 12px 28px rgba(25, 39, 62, 0.08);
+    }
+
+    .l-public {
+      left: 1195px;
+      top: 520px;
+      display: none;
+    }
+
+    .l-admin {
+      left: 242px;
+      top: 1245px;
+      display: none;
+    }
+
+    .l-web-app {
+      left: 1340px;
+      top: 548px;
+    }
+
+    .l-app-db {
+      left: 2268px;
+      top: 548px;
+    }
+
+    .l-nat {
+      left: 660px;
+      top: 1425px;
+    }
+
+    .l-kms {
+      left: 2525px;
+      top: 1430px;
+    }
+
+    .legend {
+      position: absolute;
+      left: 116px;
+      right: 116px;
+      bottom: 70px;
+      height: 170px;
+      border: 2px solid #d2dce8;
+      border-radius: 30px;
+      background: rgba(255, 255, 255, 0.94);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 34px;
+      padding: 30px 42px;
+      z-index: 12;
+      box-shadow: 0 20px 50px rgba(25, 39, 62, 0.10);
+    }
+
+    .legend-group {
+      display: flex;
+      align-items: center;
+      gap: 34px;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 28px;
+      color: #475569;
+      font-weight: 900;
+    }
+
+    .line-sample {
+      width: 82px;
+      height: 0;
+      border-top: 9px solid var(--blue);
+      border-radius: 999px;
+    }
+
+    .line-sample.green {
+      border-color: var(--green);
+    }
+
+    .line-sample.orange {
+      border-color: var(--orange);
+      border-top-style: dashed;
+    }
+
+    .line-sample.violet {
+      border-color: var(--violet);
+      border-top-style: dashed;
+    }
+
+    .line-sample.red {
+      border-color: var(--red);
+    }
+
+    .credit {
+      color: #64748b;
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1.25;
+      text-align: right;
+      max-width: 760px;
+    }
+
+    svg.flows {
+      position: absolute;
+      inset: 0;
+      width: 3840px;
+      height: 2160px;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .flow {
+      fill: none;
+      stroke: var(--blue);
+      stroke-width: 12;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      marker-end: url(#arrow-blue);
+      filter: drop-shadow(0 0 10px rgba(31, 111, 235, 0.24));
+    }
+
+    .flow.internal {
+      stroke: var(--green);
+      marker-end: url(#arrow-green);
+      filter: drop-shadow(0 0 10px rgba(22, 138, 83, 0.20));
+    }
+
+    .flow.admin-flow {
+      stroke: var(--red);
+      marker-end: url(#arrow-red);
+      filter: drop-shadow(0 0 10px rgba(180, 35, 24, 0.18));
+    }
+
+    .flow.aux {
+      stroke: var(--violet);
+      stroke-dasharray: 24 20;
+      marker-end: url(#arrow-violet);
+      filter: drop-shadow(0 0 10px rgba(107, 79, 194, 0.18));
+    }
+
+    .flow.bootstrap {
+      stroke: var(--orange);
+      stroke-dasharray: 26 22;
+      marker-end: url(#arrow-orange);
+      filter: drop-shadow(0 0 10px rgba(199, 109, 0, 0.18));
+    }
+
+    .pulse {
+      stroke-dasharray: 32 24;
+      animation: dash 1.1s linear infinite, glow 1.8s ease-in-out infinite;
+    }
+
+    .pulse.slow {
+      animation-duration: 1.8s, 2.6s;
+    }
+
+    .packet {
+      filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.9));
+    }
+
+    .packet.blue {
+      fill: var(--blue);
+    }
+
+    .packet.green {
+      fill: var(--green);
+    }
+
+    .packet.orange {
+      fill: var(--orange);
+    }
+
+    @keyframes dash {
+      to {
+        stroke-dashoffset: -112;
+      }
+    }
+
+    @keyframes glow {
+      0%, 100% {
+        opacity: 0.74;
+      }
+      50% {
+        opacity: 1;
+      }
+    }
+
+    @media print {
+      body,
+      .stage {
+        width: 3840px;
+        height: 2160px;
+        background: #fff;
+        overflow: hidden;
+      }
+
+      .pulse {
+        animation: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <main class="canvas" aria-label="Schéma dynamique architecture 3 tiers NordCloud">
+      <header class="header">
+        <section class="headline">
+          <h1>NordCloud - Architecture 3 tiers</h1>
+          <p>Frontend Nginx public, API Python privée, PostgreSQL isolé, sécurité par couches et déploiement OpenTofu.</p>
+        </section>
+        <section class="region-badge" aria-label="Region AWS">
+          <img src="assets/aws-icons/aws-cloud.svg" alt="">
+          AWS eu-west-1
+        </section>
+      </header>
+
+      <section class="aws-cloud" aria-hidden="true"></section>
+      <div class="cloud-title">
+        <img src="assets/aws-icons/aws-cloud.svg" alt="">
+        AWS Cloud - projet pédagogique NordCloud
+      </div>
+
+      <section class="vpc-box" aria-hidden="true"></section>
+      <div class="vpc-label">
+        <img src="assets/aws-icons/vpc.svg" alt="">
+        VPC 172.20.0.0/16
+      </div>
+
+      <svg class="flows" viewBox="0 0 3840 2160" aria-hidden="true">
+        <defs>
+          <marker id="arrow-blue" markerWidth="34" markerHeight="34" refX="30" refY="17" orient="auto" markerUnits="userSpaceOnUse">
+            <path d="M2,2 L30,17 L2,32 Z" fill="#1f6feb"></path>
+          </marker>
+          <marker id="arrow-green" markerWidth="34" markerHeight="34" refX="30" refY="17" orient="auto" markerUnits="userSpaceOnUse">
+            <path d="M2,2 L30,17 L2,32 Z" fill="#168a53"></path>
+          </marker>
+          <marker id="arrow-orange" markerWidth="34" markerHeight="34" refX="30" refY="17" orient="auto" markerUnits="userSpaceOnUse">
+            <path d="M2,2 L30,17 L2,32 Z" fill="#c76d00"></path>
+          </marker>
+          <marker id="arrow-red" markerWidth="34" markerHeight="34" refX="30" refY="17" orient="auto" markerUnits="userSpaceOnUse">
+            <path d="M2,2 L30,17 L2,32 Z" fill="#b42318"></path>
+          </marker>
+          <marker id="arrow-violet" markerWidth="34" markerHeight="34" refX="30" refY="17" orient="auto" markerUnits="userSpaceOnUse">
+            <path d="M2,2 L30,17 L2,32 Z" fill="#6b4fc2"></path>
+          </marker>
+
+          <path id="p-public" d="M595 650 C650 710, 675 800, 605 875 C665 895, 705 905, 740 925"></path>
+          <path id="p-admin" d="M605 1145 C650 1140, 690 1122, 740 1110"></path>
+          <path id="p-web-app" d="M1522 1030 C1582 1030, 1605 1030, 1650 1030"></path>
+          <path id="p-app-db" d="M2432 1030 C2492 1030, 2520 1030, 2560 1030"></path>
+          <path id="p-app-nat" d="M2060 1300 C1700 1455, 1040 1495, 605 1388"></path>
+          <path id="p-db-nat" d="M2980 1300 C2500 1515, 1420 1538, 605 1388"></path>
+          <path id="p-kms" d="M2920 1300 C2835 1418, 2670 1494, 2528 1534"></path>
+          <path id="p-ebs" d="M2920 1300 C3050 1405, 3010 1492, 2888 1535"></path>
+          <path id="p-iac" d="M3158 1535 C2860 1405, 2470 1305, 2095 1228"></path>
+        </defs>
+
+        <use href="#p-public" class="flow pulse"></use>
+        <use href="#p-admin" class="flow admin-flow pulse slow"></use>
+        <use href="#p-web-app" class="flow internal pulse"></use>
+        <use href="#p-app-db" class="flow internal pulse"></use>
+        <use href="#p-app-nat" class="flow bootstrap pulse slow"></use>
+        <use href="#p-db-nat" class="flow bootstrap pulse slow"></use>
+        <use href="#p-kms" class="flow aux pulse slow"></use>
+        <use href="#p-ebs" class="flow aux pulse slow"></use>
+        <use href="#p-iac" class="flow aux pulse slow"></use>
+
+        <circle r="14" class="packet blue">
+          <animateMotion dur="2.4s" repeatCount="indefinite">
+            <mpath href="#p-public"></mpath>
+          </animateMotion>
+        </circle>
+        <circle r="14" class="packet green">
+          <animateMotion dur="1.8s" repeatCount="indefinite">
+            <mpath href="#p-web-app"></mpath>
+          </animateMotion>
+        </circle>
+        <circle r="14" class="packet green">
+          <animateMotion dur="1.8s" repeatCount="indefinite" begin="0.35s">
+            <mpath href="#p-app-db"></mpath>
+          </animateMotion>
+        </circle>
+        <circle r="12" class="packet orange">
+          <animateMotion dur="3.2s" repeatCount="indefinite">
+            <mpath href="#p-db-nat"></mpath>
+          </animateMotion>
+        </circle>
+      </svg>
+
+      <article class="external users">
+        <img src="assets/aws-icons/user.svg" alt="">
+        <div>
+          <h3>Utilisateurs</h3>
+          <p>HTTP / HTTPS</p>
+        </div>
+      </article>
+
+      <article class="external admin">
+        <img src="assets/aws-icons/user.svg" alt="">
+        <div>
+          <h3>Admin CIDR</h3>
+          <p>SSH 22 restreint</p>
+        </div>
+      </article>
+
+      <article class="external igw">
+        <img src="assets/aws-icons/igw.svg" alt="">
+        <div>
+          <h3>Internet Gateway</h3>
+          <p>Route publique</p>
+          <div class="mini-badges">
+            <span class="mini-badge"><img src="assets/aws-icons/route-table.svg" alt="">RT</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="external nat">
+        <img src="assets/aws-icons/nat.svg" alt="">
+        <div>
+          <h3>NAT Gateway</h3>
+          <p>Bootstrap app/db</p>
+          <div class="mini-badges">
+            <span class="mini-badge"><img src="assets/aws-icons/eip.svg" alt="">EIP</span>
+            <span class="mini-badge"><img src="assets/aws-icons/route-table.svg" alt="">RT</span>
+          </div>
+        </div>
+      </article>
+
+      <section class="subnet public">
+        <div class="subnet-title">
+          <img src="assets/aws-icons/public-subnet.svg" alt="">
+          Subnet public - présentation
+        </div>
+        <span class="cidr">172.20.10.0/24</span>
+        <article class="card">
+          <div class="card-head">
+            <div class="icon-wrap"><img src="assets/aws-icons/ec2.svg" alt=""></div>
+            <div>
+              <h2>EC2 Web</h2>
+              <p class="subtitle">Nginx + frontend HTML</p>
+            </div>
+          </div>
+          <div class="details">
+            <div class="mini-line"><img src="assets/aws-icons/eni.svg" alt=""><span><strong>IP privée</strong> 172.20.10.10</span></div>
+            <div class="mini-line"><img src="assets/aws-icons/route-table.svg" alt=""><span><strong>Reverse proxy</strong> vers API privée</span></div>
+            <div class="mini-line"><img src="assets/aws-icons/sg.svg" alt=""><span><strong>SG web</strong> 80/443 Internet, 22 admin</span></div>
+          </div>
+          <div class="chips">
+            <span class="chip green">Public IP</span>
+            <span class="chip">Nginx</span>
+            <span class="chip blue">TLS ready</span>
+          </div>
+        </article>
+      </section>
+
+      <section class="subnet app">
+        <div class="subnet-title">
+          <img src="assets/aws-icons/private-subnet.svg" alt="">
+          Subnet privé - application
+        </div>
+        <span class="cidr">172.20.20.0/24</span>
+        <article class="card">
+          <div class="card-head">
+            <div class="icon-wrap"><img src="assets/aws-icons/ec2.svg" alt=""></div>
+            <div>
+              <h2>EC2 API</h2>
+              <p class="subtitle">Python Flask + Gunicorn</p>
+            </div>
+          </div>
+          <div class="details">
+            <div class="mini-line"><img src="assets/aws-icons/eni.svg" alt=""><span><strong>IP privée</strong> 172.20.20.10</span></div>
+            <div class="mini-line"><img src="assets/aws-icons/cloudwatch-logs.svg" alt=""><span><strong>Endpoints</strong> /health, /api/v1/messages</span></div>
+            <div class="mini-line"><img src="assets/aws-icons/sg.svg" alt=""><span><strong>SG app</strong> 8080 depuis SG web</span></div>
+          </div>
+          <div class="chips">
+            <span class="chip blue">No public IP</span>
+            <span class="chip">Port 8080</span>
+            <span class="chip green">API REST</span>
+          </div>
+        </article>
+      </section>
+
+      <section class="subnet data">
+        <div class="subnet-title">
+          <img src="assets/aws-icons/private-subnet.svg" alt="">
+          Subnet privé - données
+        </div>
+        <span class="cidr">172.20.30.0/24</span>
+        <article class="card">
+          <div class="card-head">
+            <div class="icon-wrap"><img src="assets/aws-icons/ec2.svg" alt=""></div>
+            <div>
+              <h2>EC2 PostgreSQL</h2>
+              <p class="subtitle">Backend de données</p>
+            </div>
+          </div>
+          <div class="details">
+            <div class="mini-line"><img src="assets/aws-icons/eni.svg" alt=""><span><strong>IP privée</strong> 172.20.30.10</span></div>
+            <div class="mini-line"><img src="assets/aws-icons/ebs.svg" alt=""><span><strong>Base</strong> nordcloud, user nordcloud_app</span></div>
+            <div class="mini-line"><img src="assets/aws-icons/sg.svg" alt=""><span><strong>SG db</strong> 5432 depuis SG app seulement</span></div>
+          </div>
+          <div class="chips">
+            <span class="chip blue">No public IP</span>
+            <span class="chip orange">PostgreSQL 15</span>
+            <span class="chip">Port 5432</span>
+          </div>
+        </article>
+      </section>
+
+      <section class="service-row" aria-label="Services transverses">
+        <article class="service">
+          <img src="assets/aws-icons/iam.svg" alt="">
+          <strong>IAM minimal</strong>
+          <span>EC2 profile, CloudWatch PutMetricData</span>
+        </article>
+        <article class="service">
+          <img src="assets/aws-icons/kms.svg" alt="">
+          <strong>KMS</strong>
+          <span>Rotation active, volumes chiffrés</span>
+        </article>
+        <article class="service">
+          <img src="assets/aws-icons/ebs.svg" alt="">
+          <strong>EBS gp3</strong>
+          <span>Root + data app/db chiffrés</span>
+        </article>
+        <article class="service">
+          <img src="assets/aws-icons/s3.svg" alt="">
+          <strong>State S3</strong>
+          <span>Backend Terraform/OpenTofu</span>
+        </article>
+        <article class="service">
+          <img src="assets/aws-icons/codepipeline.svg" alt="">
+          <strong>GitHub Actions</strong>
+          <span>OpenTofu plan/apply/destroy</span>
+        </article>
+      </section>
+
+      <span class="flow-label l-public">80/443 Internet -> Web</span>
+      <span class="flow-label l-admin">22 SSH admin -> Web</span>
+      <span class="flow-label l-web-app">8080 Web -> API</span>
+      <span class="flow-label l-app-db">5432 API -> PostgreSQL</span>
+      <span class="flow-label l-nat">HTTP/HTTPS/DNS bootstrap</span>
+      <span class="flow-label l-kms">KMS + EBS chiffrés</span>
+
+      <footer class="legend">
+        <div class="legend-group">
+          <div class="legend-item"><span class="line-sample"></span>Flux public autorisé</div>
+          <div class="legend-item"><span class="line-sample green"></span>Flux applicatif interne</div>
+          <div class="legend-item"><span class="line-sample orange"></span>Sortie bootstrap via NAT</div>
+          <div class="legend-item"><span class="line-sample violet"></span>Services transverses</div>
+          <div class="legend-item"><span class="line-sample red"></span>Administration restreinte</div>
+        </div>
+        <div class="credit">
+          Icônes AWS officielles issues du package AWS Architecture Icons. Schéma HTML autonome 4K.
+        </div>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>
